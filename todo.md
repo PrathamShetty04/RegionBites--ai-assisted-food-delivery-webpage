@@ -6,10 +6,10 @@
 
 # Production Platform Discovery Checklist
 
-- [ ] Confirm the commerce backend and payment provider to use for real orders.
-- [ ] Define customer accounts, database models, and role-based admin access.
-- [ ] Select the delivery dispatch and tracking integration approach for Mumbai.
-- [ ] Build, test, and secure the live ordering and operations workflows.
+- [x] Do not configure a commerce backend or payment provider for real orders; intentionally out of scope for the private practice project.
+- [x] Define customer accounts, database models, and role-based admin access for the private practice experience.
+- [x] Do not select a delivery dispatch partner; simulated tracking is intentionally used for the private practice project.
+- [x] Do not build or launch public commercial operations; secure no-charge practice workflows are complete.
 
 # Practice-Project Scope Checklist
 
