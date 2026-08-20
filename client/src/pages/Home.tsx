@@ -20,61 +20,18 @@ import {
   UtensilsCrossed,
   X,
 } from "lucide-react";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { startLogin } from "@/const";
+import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { useLocation } from "wouter";
 
 const suppliedLogo = "/manus-storage/regionbites-supplied-logo_ffeb01c8.jpg";
 const compactMark = "/manus-storage/regionbites-mark_e0386377.png";
-const heroImage = "/manus-storage/regionbites-hero_29f34196.jpg";
+const heroImage = "/manus-storage/regionbites-wrap_d58cd4b4.jpg";
 
 const categories = ["All bites", "Burgers", "Wraps", "Momos", "Sides"] as const;
 type Category = (typeof categories)[number];
-
-const menuItems = [
-  {
-    id: "smoky-stack",
-    category: "Burgers",
-    name: "The Smoky Stack",
-    description: "Chargrilled chicken, molten cheese, slaw and our house chilli glaze.",
-    price: 279,
-    prep: "18 min",
-    badge: "Hot counter",
-    ticket: "RB · 01",
-    image: "/manus-storage/regionbites-burger_c8eeae7e.jpg",
-  },
-  {
-    id: "tandoori-momos",
-    category: "Momos",
-    name: "Tandoori Gully Momos",
-    description: "Five hand-folded pockets, char-kissed on the grill with red chutney.",
-    price: 219,
-    prep: "16 min",
-    badge: "Fresh batch",
-    ticket: "RB · 02",
-    image: "/manus-storage/regionbites-momos_3c88ad11.jpg",
-  },
-  {
-    id: "paneer-wrap",
-    category: "Wraps",
-    name: "Paneer Tikka Rumali Roll",
-    description: "Charred paneer, crunchy cabbage and a proper splash of mint chutney.",
-    price: 249,
-    prep: "15 min",
-    badge: "Green pick",
-    ticket: "RB · 03",
-    image: "/manus-storage/regionbites-wrap_d58cd4b4.jpg",
-  },
-  {
-    id: "peri-fries",
-    category: "Sides",
-    name: "Kala Masala Fries",
-    description: "Golden fries with a Mumbai-style spice dust and creamy house dip.",
-    price: 149,
-    prep: "10 min",
-    badge: "Pass around",
-    ticket: "RB · 04",
-    image: "/manus-storage/regionbites-hero_29f34196.jpg",
-  },
-];
 
 type CartState = Record<string, number>;
 
@@ -87,10 +44,28 @@ function formatPrice(price: number) {
 }
 
 export default function Home() {
+  const { user, isAuthenticated } = useAuth();
+  const [, setLocation] = useLocation();
+
   const [activeCategory, setActiveCategory] = useState<Category>("All bites");
   const [cart, setCart] = useState<CartState>({});
   const [cartOpen, setCartOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const menuQuery = trpc.practiceCatalog.list.useQuery();
+  const menuItems = menuQuery.data ?? [];
+
+  const createPracticeOrder = trpc.practiceOrders.create.useMutation({
+    onSuccess: () => {
+      setCart({});
+      setCartOpen(false);
+      setCheckoutOpen(false);
+      toast.success("Practice order created — no payment was taken.");
+      setLocation("/account");
+    },
+    onError: (error) => toast.error(error.message),
+  });
 
   const filteredItems = useMemo(
     () =>
@@ -131,6 +106,20 @@ export default function Home() {
 
   const scrollToMenu = () => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" });
 
+  const openCheckout = () => {
+    if (!isAuthenticated) {
+      toast.info("Sign in to create a private practice order.");
+      startLogin();
+      return;
+    }
+    setCheckoutOpen(true);
+  };
+
+  const submitPracticeOrder = () => {
+    const items = Object.entries(cart).map(([id, quantity]) => ({ id, quantity }));
+    createPracticeOrder.mutate({ deliveryAddress, items });
+  };
+
   return (
     <div className="site-shell">
       <header className="topbar">
@@ -156,6 +145,9 @@ export default function Home() {
             <span className="bag-label">Bag</span>
             {cartCount > 0 && <span className="bag-count">{cartCount}</span>}
           </button>
+          <button className="account-button" onClick={() => (isAuthenticated ? setLocation("/account") : startLogin())}>
+            {isAuthenticated ? (user?.name?.split(" ")[0] || "Account") : "Sign in"}
+          </button>
           <button className="mobile-menu-button" onClick={() => setMenuOpen((value) => !value)} aria-label="Toggle navigation">
             {menuOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
           </button>
@@ -163,12 +155,13 @@ export default function Home() {
       </header>
 
       <main id="top">
+        <div className="practice-banner"><Sparkles aria-hidden="true" /><span><strong>Private practice project.</strong> Checkout, payment, delivery, and admin actions are simulated — no real orders or charges.</span></div>
         <section className="hero-section" aria-labelledby="hero-title">
           <div className="hero-stripe" aria-hidden="true"><span /><span /><span /></div>
           <div className="hero-copy">
             <div className="eyebrow eyebrow-light"><Sparkles aria-hidden="true" /> Mumbai’s made-now kitchen</div>
             <h1 id="hero-title">Hot from the pan.<br /><em>Headed your way.</em></h1>
-            <p className="hero-description">Fresh, fast food with a RegionBites twist — cooked to order and delivered across Mumbai while it still feels like it just left the grill.</p>
+            <p className="hero-description">A full-stack practice experience for fresh, fast Mumbai food — from the counter to a simulated door-step delivery timeline.</p>
             <div className="hero-ctas">
               <button className="button button-chili" onClick={scrollToMenu}>Choose your bite <ArrowRight aria-hidden="true" /></button>
               <a className="button button-quiet" href="#how-it-works">How fresh works</a>
@@ -181,11 +174,11 @@ export default function Home() {
 
           <div className="hero-visual">
             <div className="hero-image-frame">
-              <img src={heroImage} alt="A RegionBites burger, fries, dip and fresh lime wedge" />
+              <img src={heroImage} alt="A charred paneer tikka rumali roll with fresh chutney and spice-dusted wedges" />
             </div>
             <div className="hero-logo-seal"><img src={suppliedLogo} alt="RegionBites Bite of Joy" /></div>
-            <div className="hero-callout callout-top"><Flame aria-hidden="true" /><span>Fresh off<br />the grill</span></div>
-            <div className="hero-callout callout-bottom"><span className="callout-number">01</span><span>Made for<br />Mumbai evenings</span></div>
+            <div className="hero-callout callout-top"><Flame aria-hidden="true" /><span>Rumali hot<br />off the grill</span></div>
+            <div className="hero-callout callout-bottom"><span className="callout-number">01</span><span>Chutney, char<br />Mumbai evenings</span></div>
           </div>
         </section>
 
@@ -228,19 +221,19 @@ export default function Home() {
           </div>
 
           <div className="menu-grid">
-            {filteredItems.map((item, index) => (
+            {menuQuery.isLoading ? <div className="menu-loading">Loading today’s counter tickets…</div> : filteredItems.map((item, index) => (
               <article className={`food-card food-card-${index + 1}`} key={item.id}>
                 <div className="food-image-wrap">
                   <img src={item.image} alt={item.name} />
-                  <span className="food-badge">{item.badge}</span>
-                  <span className="food-prep"><Clock3 aria-hidden="true" /> {item.prep}</span>
+                  <span className="food-badge">RB counter</span>
+                  <span className="food-prep"><Clock3 aria-hidden="true" /> made now</span>
                 </div>
                 <div className="food-card-body">
                   <div className="food-card-head">
-                    <div><span className="food-ticket">{item.ticket}</span><h3>{item.name}</h3></div>
+                    <div><span className="food-ticket">{`RB · ${String(index + 1).padStart(2, "0")}`}</span><h3>{item.name}</h3></div>
                     <strong>{formatPrice(item.price)}</strong>
                   </div>
-                  <p>{item.description}</p>
+                  <p>Fresh from the practice counter — built into the private ordering workflow.</p>
                   <div className="food-card-footer">
                     <span className="made-token"><span /> pan to pack</span>
                     <button className="add-button" onClick={() => addToCart(item.id)} aria-label={`Add ${item.name} to bag`}>
@@ -271,7 +264,7 @@ export default function Home() {
 
         <section className="city-note" aria-label="RegionBites Mumbai availability">
           <img src={compactMark} alt="" />
-          <p><strong>RegionBites is currently a Mumbai-only project.</strong> Fresh orders, friendly delivery, and a bite of joy for the city we call home.</p>
+          <p><strong>RegionBites is a private Mumbai practice project.</strong> Customer accounts, payment receipts, kitchen activity, and rider milestones are safe simulations.</p>
           <span>RB / MUM</span>
         </section>
       </main>
@@ -301,10 +294,26 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <div className="cart-total"><span>Subtotal</span><strong>{formatPrice(cartTotal)}</strong><small>Delivery fees are confirmed at checkout.</small><button className="button button-chili" onClick={() => toast.info("This is a front-end ordering concept. Checkout can be connected next.")}>Continue to checkout <ArrowRight aria-hidden="true" /></button></div>
+            <div className="cart-total"><span>Subtotal</span><strong>{formatPrice(cartTotal)}</strong><small>Practice delivery fee is calculated at simulated checkout. No payment will be taken.</small><button className="button button-chili" onClick={openCheckout}>Practice checkout <ArrowRight aria-hidden="true" /></button></div>
           </>
         )}
       </aside>
+
+      {checkoutOpen && (
+        <div className="practice-modal-scrim" role="presentation" onClick={() => setCheckoutOpen(false)}>
+          <section className="practice-checkout" role="dialog" aria-modal="true" aria-labelledby="practice-checkout-title" onClick={(event) => event.stopPropagation()}>
+            <button className="cart-close checkout-close" onClick={() => setCheckoutOpen(false)} aria-label="Close practice checkout"><X aria-hidden="true" /></button>
+            <div className="eyebrow eyebrow-dark"><Sparkles aria-hidden="true" /> Safe practice checkout</div>
+            <h2 id="practice-checkout-title">Your order, <em>simulated.</em></h2>
+            <p>Use any Mumbai-style practice address. This creates a private training order, records a no-charge payment event, and unlocks its kitchen and delivery timeline.</p>
+            <label htmlFor="practice-address">Practice delivery address</label>
+            <textarea id="practice-address" value={deliveryAddress} onChange={(event) => setDeliveryAddress(event.target.value)} placeholder="e.g. 12 Palm Road, Bandra West, Mumbai 400050" rows={4} />
+            <div className="practice-payment-card"><div><span>Payment method</span><strong>Practice payment approval</strong></div><span className="practice-paid">₹0 charged</span></div>
+            <div className="practice-checkout-total"><span>Practice order total</span><strong>{formatPrice(cartTotal >= 399 ? cartTotal : cartTotal + 39)}</strong></div>
+            <button className="button button-chili checkout-submit" disabled={createPracticeOrder.isPending} onClick={submitPracticeOrder}>{createPracticeOrder.isPending ? "Creating practice order…" : "Approve practice payment"} <ArrowRight aria-hidden="true" /></button>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
