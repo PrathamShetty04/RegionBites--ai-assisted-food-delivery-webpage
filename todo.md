@@ -3,6 +3,8 @@
 - [x] Confirm the target GitHub account, repository name, visibility, and creation approval.
 - [x] Create the repository and export the RegionBites Mumbai project.
 - [x] Verify the repository URL and report the result.
+- [ ] Push the private full-stack practice update to the existing GitHub repository.
+- [ ] Verify the new GitHub commit and repository branch.
 
 # Production Platform Discovery Checklist
 
